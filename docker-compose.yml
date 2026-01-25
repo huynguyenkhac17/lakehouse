@@ -45,6 +45,7 @@ services:
     container_name: lakehouse-hms
     depends_on:
       - postgres
+    command: ["/bin/bash", "-c", "sleep 3600"]
     environment:
       SERVICE_NAME: metastore
       DB_DRIVER: postgres
