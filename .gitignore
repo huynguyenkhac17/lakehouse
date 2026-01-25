@@ -1,0 +1,23 @@
+# Data volumes
+minio/data/*
+clickhouse/data/*
+
+# Spark
+spark/logs/*
+spark/work/*
+spark/warehouse/*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+# IDEs
+.vscode/
+.idea/
