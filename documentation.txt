@@ -18,7 +18,7 @@ docker compose build
 2. Khởi động services
 docker compose up -d
 
-3. Tạo schema lần đầu
+3. Tạo schema lần đầu (up xong đợi khoảng 30s cho postgres lên đã nhé)
 docker exec -it lakehouse-hms schematool -initSchema -dbType postgres
 
 Các service:
@@ -42,3 +42,4 @@ Kiểm tra dữ liệu:
     User: admin (Pass để trống).
 
 !Chú ý: trong code spark kết nối với storege ko dùng localhost mà dùng tên service
+
