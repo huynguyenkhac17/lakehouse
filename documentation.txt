@@ -1,0 +1,44 @@
+Disk: 20GB
+RAM: 8GB
+
+Cấu trúc dự án:
+  
+lakehouse/
+├── docker-compose.yml           # File điều phối toàn bộ
+├── notebooks/                   # Chứa source code ETL (.ipynb)
+├── minio/data/                  # Dữ liệu vật lý (giả lập S3)
+├── spark/                     
+│   ├── Dockerfile               # Cấu hình môi trường Spark + Iceberg JARs
+│   └── conf/spark-defaults.conf # Cấu hình kết nối S3/MinIO
+└── init/                        # Tạo Database ban đầu 
+
+1. Build images (Chỉ chạy lần đầu thôi nhé hoặc nếu sửa file docker)
+docker compose build
+
+2. Khởi động services
+docker compose up -d
+
+3. Tạo schema lần đầu
+docker exec -it lakehouse-hms schematool -initSchema -dbType postgres
+
+Các service:
+Jupyter Lab:	http://localhost:8888	(Không cần pass)
+MinIO Console:	http://localhost:9001	admin / password (Quản lý File/Bucket)
+Spark Master	http://localhost:8080 (Xem trạng thái Cluster)
+Spark History	http://localhost:18080 (Xem log các job đã chạy)
+Thrift Server	localhost:10000	User: admin (Cổng JDBC cho DBeaver/dbt)
+
+Ingestion Data:
+-Vào Jupyter Lab (localhost:8888)
+-Copy Data vào thư mục notebooks
+-Spark để đọc và ghi xuống định dạng Iceberg:
+    df = spark.read.csv("data_source.csv", header=True)
+    df.writeTo("lakehouse.bronze.my_table").create()
+
+Kiểm tra dữ liệu:
+-MinIO Console (localhost:9001): các file parquest được sinh ra trong bucket lakehouse
+-Dùng DBeaver kết nối tới Spark Thrift Server để query SQL kiểm tra:
+    JDBC URL: jdbc:hive2://localhost:10000
+    User: admin (Pass để trống).
+
+!Chú ý: trong code spark kết nối với storege ko dùng localhost mà dùng tên service
