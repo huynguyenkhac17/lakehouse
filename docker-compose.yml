@@ -45,7 +45,7 @@ services:
     container_name: lakehouse-hms
     depends_on:
       - postgres
-    command: ["/bin/bash", "-c", "sleep 3600"]
+    # command: ["/bin/bash", "-c", "sleep 3600"]
     environment:
       SERVICE_NAME: metastore
       DB_DRIVER: postgres
@@ -82,6 +82,10 @@ services:
     depends_on:
       - spark-master
       - hive-metastore
+      - postgres
+    environment:
+      - SPARK_CONF_DIR=/opt/spark/conf
+      - HADOOP_CONF_DIR=/opt/spark/conf
     command: /opt/spark/sbin/start-thriftserver.sh --master spark://spark-master:7077 --hiveconf hive.server2.thrift.port=10000 --hiveconf hive.server2.thrift.bind.host=0.0.0.0 --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
     ports:
       - "10000:10000"

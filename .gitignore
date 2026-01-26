@@ -2,6 +2,9 @@
 minio/data/*
 clickhouse/data/*
 
+# Raw data
+notebooks/*
+
 # Spark
 spark/logs/*
 spark/work/*
