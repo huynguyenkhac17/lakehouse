@@ -1,11 +1,10 @@
-version: "3.8"
-
 x-spark-common: &spark-common
   build: ./spark
   networks:
     - lakehouse-net
   volumes:
     - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+    - ./notebooks:/opt/spark/work-dir
 
 services:
   # STORAGE
@@ -73,8 +72,8 @@ services:
     # Khởi động Worker cho image Apache
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     environment:
-      - SPARK_WORKER_CORES=1
-      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=8
+      - SPARK_WORKER_MEMORY=8G
 
   spark-thrift-server:
     <<: *spark-common
@@ -102,7 +101,7 @@ services:
     ports:
       - "8888:8888"
     volumes:
-      - ./notebooks:/home/spark/work
+      - ./notebooks:/opt/spark/work-dir
       - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
     environment:
       - SPARK_MASTER_URL=spark://spark-master:7077
