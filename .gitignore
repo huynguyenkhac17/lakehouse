@@ -25,4 +25,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+*.log
 *.jar
+*.gpickle
+*.json
+*.msgpack
+*.parquet
