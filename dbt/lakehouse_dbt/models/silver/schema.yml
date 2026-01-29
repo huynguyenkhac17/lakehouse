@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: stg_ecommerce_events
+    description: "Silver layer - Cleaned and transformed e-commerce events from Bronze layer"
+    columns:
+      - name: event_timestamp
+        description: "Parsed timestamp of the event"
+        tests:
+          - not_null
+      - name: event_date
+        description: "Date extracted from event_timestamp for partitioning"
+        tests:
+          - not_null
+      - name: event_hour
+        description: "Hour of the day (0-23)"
+      - name: event_type
+        description: "Type of event: view, cart, purchase, remove_from_cart"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['view', 'cart', 'purchase', 'remove_from_cart']
+      - name: product_id
+        description: "Unique product identifier"
+        tests:
+          - not_null
+      - name: category_id
+        description: "Category identifier"
+      - name: category_code
+        description: "Category path (e.g., electronics.smartphone)"
+      - name: brand
+        description: "Product brand name, 'unknown' if missing"
+        tests:
+          - not_null
+      - name: price
+        description: "Product price in USD"
+        tests:
+          - not_null
+      - name: user_id
+        description: "Unique user identifier"
+        tests:
+          - not_null
+      - name: user_session
+        description: "Session identifier for user journey tracking"
+      - name: _processed_at
+        description: "Timestamp when record was processed into Silver layer"

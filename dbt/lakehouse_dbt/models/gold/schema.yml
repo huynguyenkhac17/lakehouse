@@ -1,0 +1,73 @@
+version: 2
+
+models:
+  - name: daily_sales_summary
+    description: "Gold layer - Daily aggregated sales metrics for executive dashboards"
+    columns:
+      - name: event_date
+        description: "Date of the sales data"
+        tests:
+          - not_null
+          - unique
+      - name: total_events
+        description: "Total number of all events"
+        tests:
+          - not_null
+      - name: views
+        description: "Number of product view events"
+      - name: add_to_cart
+        description: "Number of add-to-cart events"
+      - name: purchases
+        description: "Number of completed purchases"
+      - name: revenue
+        description: "Total revenue from purchases in USD"
+      - name: unique_users
+        description: "Count of distinct users"
+      - name: unique_sessions
+        description: "Count of distinct sessions"
+      - name: conversion_rate
+        description: "Purchase conversion rate (purchases/views * 100)"
+
+  - name: brand_performance
+    description: "Gold layer - Brand-level performance metrics"
+    columns:
+      - name: brand
+        description: "Brand name"
+        tests:
+          - not_null
+          - unique
+      - name: total_events
+        description: "Total events for this brand"
+      - name: views
+        description: "Product views for this brand"
+      - name: carts
+        description: "Add-to-cart events for this brand"
+      - name: purchases
+        description: "Completed purchases for this brand"
+      - name: revenue
+        description: "Total revenue from this brand"
+      - name: avg_order_value
+        description: "Average order value for this brand"
+      - name: unique_customers
+        description: "Distinct customers who interacted with this brand"
+      - name: conversion_rate
+        description: "Brand-specific conversion rate"
+
+  - name: hourly_traffic
+    description: "Gold layer - Hourly traffic patterns for operational insights"
+    columns:
+      - name: event_hour
+        description: "Hour of day (0-23)"
+        tests:
+          - not_null
+          - unique
+      - name: total_events
+        description: "Total events in this hour"
+      - name: views
+        description: "Views in this hour"
+      - name: carts
+        description: "Add-to-cart events in this hour"
+      - name: purchases
+        description: "Purchases in this hour"
+      - name: revenue
+        description: "Revenue generated in this hour"
