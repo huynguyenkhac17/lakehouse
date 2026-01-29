@@ -1,4 +1,5 @@
 services:
+  # STORAGE LAYER
   minio:
     image: minio/minio:latest
     container_name: lakehouse-minio
@@ -19,7 +20,6 @@ services:
       timeout: 5s
       retries: 3
 
-  # Create default bucket
   minio-init:
     image: minio/mc:latest
     container_name: lakehouse-minio-init
@@ -30,15 +30,12 @@ services:
       /bin/sh -c "
       mc alias set myminio http://minio:9000 admin password;
       mc mb myminio/lakehouse --ignore-existing;
-      mc mb myminio/lakehouse-bronze --ignore-existing;
-      mc mb myminio/lakehouse-silver --ignore-existing;
-      mc mb myminio/lakehouse-gold --ignore-existing;
       exit 0;
       "
     networks:
       - lakehouse-net
 
-  # METADATA DB for REST Catalog & Superset
+  # METADATA LAYER (PostgreSQL + Iceberg REST)
   postgres:
     image: postgres:15
     container_name: lakehouse-postgres
@@ -59,7 +56,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ICEBERG REST CATALOG
   iceberg-rest:
     image: tabulario/iceberg-rest:1.5.0
     container_name: lakehouse-iceberg-rest
@@ -86,7 +82,7 @@ services:
     networks:
       - lakehouse-net
 
-  # SPARK Iceberg (Local Mode)  (16GB RAM, 8 CPUs)
+  # COMPUTE LAYER - Spark
   spark-iceberg:
     image: tabulario/spark-iceberg:3.5.1_1.5.0
     container_name: lakehouse-spark
@@ -94,10 +90,10 @@ services:
       - iceberg-rest
       - minio-init
     ports:
-      - "8888:8888"   # Jupyter
-      - "8080:8080"   # Spark UI
-      - "10000:10000" # Thrift Server
-      - "10001:10001" # Thrift HTTP
+      - "8888:8888"
+      - "8080:8080"
+      - "10000:10000"
+      - "10001:10001"
     environment:
       AWS_ACCESS_KEY_ID: admin
       AWS_SECRET_ACCESS_KEY: password
@@ -105,6 +101,7 @@ services:
     volumes:
       - ./notebooks:/home/iceberg/notebooks
       - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+      - ./dbt:/home/iceberg/dbt
     deploy:
       resources:
         limits:
@@ -116,13 +113,28 @@ services:
     networks:
       - lakehouse-net
 
-  # CLICKHOUSE for OLAP queries (Zero-Copy Iceberg)
+  # TRANSFORMATION LAYER - dbt
+  dbt:
+    image: ghcr.io/dbt-labs/dbt-spark:1.7.1
+    container_name: lakehouse-dbt
+    depends_on:
+      - spark-iceberg
+    environment:
+      DBT_PROFILES_DIR: /usr/app/dbt
+    volumes:
+      - ./dbt:/usr/app/dbt
+    working_dir: /usr/app/dbt/lakehouse_dbt
+    networks:
+      - lakehouse-net
+    entrypoint: ["tail", "-f", "/dev/null"]
+
+  # SERVING LAYER - ClickHouse
   clickhouse:
     image: clickhouse/clickhouse-server:24.1
     container_name: lakehouse-clickhouse
     ports:
-      - "8123:8123"   # HTTP
-      - "9440:9000"   # Native TCP
+      - "8123:8123"
+      - "9440:9000"
     environment:
       CLICKHOUSE_DB: lakehouse
       CLICKHOUSE_USER: admin
@@ -137,14 +149,21 @@ services:
       nofile:
         soft: 262144
         hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
-  # SUPERSET Dashboards
+  # VISUALIZATION LAYER - Superset
   superset:
     image: apache/superset:3.1.0
     container_name: lakehouse-superset
     depends_on:
-      - postgres
-      - clickhouse
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
     ports:
       - "8088:8088"
     environment:

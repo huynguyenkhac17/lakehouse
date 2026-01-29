@@ -1,45 +1,618 @@
-Disk: 20GB
-RAM: 8GB
+FULLSTACK OPEN-SOURCE LAKEHOUSE PLATFORM - BÁO CÁO TRIỂN KHAI
 
-Cấu trúc dự án:
-  
+Triển khai theo MEDALLION ARCHITECTURE
+
+                    ┌─────────────────────────────────────┐
+                    │           DATA SOURCES              │
+                    │   demo_small.csv (e-commerce)       │
+                    └──────────────┬──────────────────────┘
+                                   │
+                                   ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                      APACHE SPARK 3.5.1                          │
+│   tabulario/spark-iceberg:3.5.1_1.5.0                            │
+│   Local Mode: 8 cores, 14GB RAM                                  │
+└──────────────────────────────────────────────────────────────────┘
+          │                    │                    │
+          ▼                    ▼                    ▼
+   ┌───────────┐       ┌───────────┐       ┌───────────┐
+   │  BRONZE   │       │  SILVER   │       │   GOLD    │
+   │   (Raw)   │ ───▶  │ (Cleaned) │ ───▶  │(Aggregated)│
+   │           │  dbt  │           │  dbt  │           │
+   │ Columns:  │       │ Columns:  │       │ Tables:   │
+   │ +_ingest  │       │ +event_   │       │ daily_    │
+   │  ion_time │       │  date     │       │ sales_    │
+   │ +_source  │       │ +event_   │       │ summary   │
+   │  _file    │       │  hour     │       │           │
+   │           │       │ Partition:│       │ brand_    │
+   │           │       │ event_date│       │ performance│
+   └───────────┘       └───────────┘       └───────────┘
+          │                    │                    │
+          └────────────────────┼────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                      MINIO (S3-Compatible)                       │
+│   Bucket: s3://lakehouse/                                        │
+│   Format: Parquet + Iceberg Metadata                             │
+│   Ports: 9000 (API), 9001 (Console)                              │
+└──────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                  ICEBERG REST CATALOG                            │
+│   tabulario/iceberg-rest:1.5.0                                   │
+│   Backend: PostgreSQL 15                                         │
+│   Port: 8181                                                     │
+└──────────────────────────────────────────────────────────────────┘
+                               │
+               ┌───────────────┴───────────────┐
+               ▼                               ▼
+┌─────────────────────────┐       ┌─────────────────────────┐
+│      CLICKHOUSE 24.1    │       │    SUPERSET 3.1.0       │
+│                         │       │                         │
+│ Engine: S3 (Zero-Copy)  │       │ Driver: clickhouse-     │
+│ Tables optimized with:  │◀──────│         connect         │
+│ - PRIMARY KEY           │       │                         │
+│ - Data Skipping Index   │       │ Dashboards:             │
+│ - PARTITION BY          │       │ - Revenue Trend         │
+│                         │       │ - Top Brands            │
+│ Ports: 8123, 9440       │       │ - Hourly Traffic        │
+└─────────────────────────┘       └─────────────────────────┘
+
+--- Yêu cầu phần cứng:
+
+-Minimum:
+  Disk: 20GB
+  RAM: 8GB
+  CPU: 4 cores
+
+-Recommended
+  Disk: 50GB (khuyến nghị SSD)
+  RAM: 16GB (tối thiểu 8GB nhưng sẽ chậm)
+  CPU: 8 cores (tối thiểu 4 cores)
+
+--- CẤU TRÚC DỰ ÁN
+
 lakehouse/
-├── docker-compose.yml           # File điều phối toàn bộ
-├── notebooks/                   # Chứa source code ETL (.ipynb)
-├── minio/data/                  # Dữ liệu vật lý (giả lập S3)
-├── spark/                     
-│   ├── Dockerfile               # Cấu hình môi trường Spark + Iceberg JARs
-│   └── conf/spark-defaults.conf # Cấu hình kết nối S3/MinIO
-└── init/                        # Tạo Database ban đầu 
+├── docker-compose.yml              # Điều phối toàn bộ 7 services
+├── notebooks/                      # Source code ETL (.ipynb)
+│   ├── demo_small.csv              # Data mẫu e-commerce (~100k records)
+│   ├── lakehouse_complete.ipynb    # Notebook chính - chạy full pipeline
+│   └── medallion_demo.ipynb        # Notebook demo đơn giản
+├── minio/data/                     # Storage vật lý (giả lập S3)
+├── spark/
+│   └── conf/spark-defaults.conf    # Config Spark + Iceberg + S3
+├── clickhouse/
+│   ├── config.xml                  # Config ClickHouse + S3 + Performance tuning
+│   └── init.sql                    # Script tạo tables optimized
+├── dbt/
+│   ├── profiles.yml                # Config kết nối dbt -> Spark Thrift
+│   └── lakehouse_dbt/              # dbt project
+│       ├── dbt_project.yml
+│       └── models/
+│           ├── silver/             # Transformation models
+│           │   ├── stg_ecommerce_events.sql
+│           │   └── schema.yml      # Tests & documentation
+│           └── gold/               # Aggregation models
+│               ├── daily_sales_summary.sql
+│               ├── brand_performance.sql
+│               ├── hourly_traffic.sql
+│               └── schema.yml      # Tests & documentation
+└── init/
+    └── postgres-init.sql           # Init script cho PostgreSQL
 
-1. Build images (Chỉ chạy lần đầu thôi nhé hoặc nếu sửa file docker)
-docker compose build
 
-2. Khởi động services
+--- CÔNG NGHỆ & PHIÊN BẢN CHI TIẾT
+
+┌─────────────────┬─────────────────────────────────────┬─────────────────────┐
+│ Layer           │ Technology                          │ Version             │
+├─────────────────┼─────────────────────────────────────┼─────────────────────┤
+│ Storage         │ MinIO                               │ latest (RELEASE.*)  │
+│ Table Format    │ Apache Iceberg                      │ 1.5.0               │
+│ Catalog         │ Iceberg REST Catalog (Tabular)      │ 1.5.0               │
+│ Metadata DB     │ PostgreSQL                          │ 15                  │
+│ Compute         │ Apache Spark                        │ 3.5.1               │
+│ Transformation  │ dbt-spark                           │ 1.7.1               │
+│ Serving/OLAP    │ ClickHouse                          │ 24.1                │
+│ Visualization   │ Apache Superset                     │ 3.1.0               │
+└─────────────────┴─────────────────────────────────────┴─────────────────────┘
+
+!NOTE VỀ KIẾN TRÚC:
+  Dự án đã được migrate từ Spark Cluster + Hive Metastore sang REST Catalog.
+  Lý do: REST Catalog giúp đồng bộ metadata tốt hơn, tránh conflict giữa
+  các services, và dễ dàng integrate với nhiều compute engines khác nhau.
+
+  Kiến trúc cũ: Spark Cluster (standalone) + Hive Metastore
+  Kiến trúc mới: Spark (local mode trong tabulario image) + Iceberg REST Catalog
+
+SPARK IMAGE CHI TIẾT:
+  Image: tabulario/spark-iceberg:3.5.1_1.5.0
+  Đã bao gồm sẵn:
+    - Apache Spark 3.5.1
+    - Iceberg Spark Runtime 1.5.0
+    - Iceberg AWS (S3FileIO)
+    - AWS SDK v2 Bundle
+    - Hadoop AWS 3.3.4
+    - Jupyter Lab
+    - PySpark
+
+  Tất cả dependencies đã được bundle sẵn, không cần thêm JAR thủ công như thằng spark cluster nữa!
+
+
+--- PORTS & CONNECTIONS
+
+┌────────────────────┬────────┬─────────────────────────────┬──────────────────┐
+│ Service            │ Port   │ URL                         │ Credentials      │
+├────────────────────┼────────┼─────────────────────────────┼──────────────────┤
+│ Jupyter Lab        │ 8888   │ http://localhost:8888       │ Không cần pass   │
+│ Spark UI           │ 8080   │ http://localhost:8080       │ -                │
+│ Spark Thrift       │ 10000  │ jdbc:hive2://localhost:10000│ user: spark      │
+│ Spark Thrift HTTP  │ 10001  │ http://localhost:10001      │ -                │
+│ MinIO API          │ 9000   │ http://localhost:9000       │ admin / password │
+│ MinIO Console      │ 9001   │ http://localhost:9001       │ admin / password │
+│ Iceberg REST       │ 8181   │ http://localhost:8181       │ -                │
+│ PostgreSQL         │ 5432   │ localhost:5432              │ admin / password │
+│ ClickHouse HTTP    │ 8123   │ http://localhost:8123       │ admin / password │
+│ ClickHouse Native  │ 9440   │ localhost:9440              │ admin / password │
+│ Superset           │ 8088   │ http://localhost:8088       │ admin / admin    │
+└────────────────────┴────────┴─────────────────────────────┴──────────────────┘
+
+!LƯU Ý về PORTS:
+  - ClickHouse Native port đổi từ 9000 -> 9440 (tránh conflict với MinIO)
+  - Trong container, CÁC SERVICES GỌI NHAU BẰNG TÊN SERVICE, không dùng localhost
+    Ví dụ: http://minio:9000 (không phải http://localhost:9000)
+
+--------------- HƯỚNG DẪN TRIỂN KHAI
+
+-- BƯỚC 1: CHUẨN BỊ
+
+# Clone repository (or copy folder)
+cd /path/to/lakehouse
+
+# Kiểm tra cấu trúc
+ls -la
+
+# Đảm bảo có các folders
+mkdir -p minio/data notebooks spark/conf clickhouse dbt init
+
+-- BƯỚC 2: KHỞI ĐỘNG SERVICES
+
+- Xóa containers cũ (nếu có)
+docker compose down -v
+
+- Xóa data cũ (nếu muốn reset hoàn toàn)
+rm -rf ./minio/data/*
+
+- Khởi động tất cả services
 docker compose up -d
 
-3. Tạo schema lần đầu (up xong đợi khoảng 30s cho postgres lên đã nhé)
-docker exec -it lakehouse-hms schematool -initSchema -dbType postgres
+- Đợi tầm 60-90 giây cho services healthy
 
-Các service:
-Jupyter Lab:	http://localhost:8888	(Không cần pass)
-MinIO Console:	http://localhost:9001	admin / password (Quản lý File/Bucket)
-Spark Master	http://localhost:8080 (Xem trạng thái Cluster)
-Spark History	http://localhost:18080 (Xem log các job đã chạy)
-Thrift Server	localhost:10000	User: admin (Cổng JDBC cho DBeaver/dbt)
+- Kiểm tra trạng thái
+docker compose ps (-a)
 
-Ingestion Data:
--Vào Jupyter Lab (localhost:8888)
--Copy Data vào thư mục notebooks
--Spark để đọc và ghi xuống định dạng Iceberg:
-    df = spark.read.csv("data_source.csv", header=True)
-    df.writeTo("lakehouse.bronze.my_table").create()
+- Kết quả mong đợi: Tất cả services phải "Up" hoặc "healthy"
+Trừ: minio-init (Exited 0) - đây là init container, exit là chuẩn bài
 
-Kiểm tra dữ liệu:
--MinIO Console (localhost:9001): các file parquest được sinh ra trong bucket lakehouse
--Dùng DBeaver kết nối tới Spark Thrift Server để query SQL kiểm tra:
-    JDBC URL: jdbc:hive2://localhost:10000
-    User: admin (Pass để trống).
+-- BƯỚC 3: KIỂM TRA SERVICES
 
-!Chú ý: trong code spark kết nối với storege ko dùng localhost mà dùng tên service
+- Kiểm tra Jupter
+http://localhost:8888
 
+- Kiểm tra MinIO
+http://localhost:9000
+
+- Kiểm tra Iceberg REST Catalog
+curl http://localhost:8181/v1/config
+Kết quả: JSON với catalog config
+
+- Kiểm tra ClickHouse
+http://localhost:8123
+
+# Kiểm tra Superset (đợi 2-3 phút để init xong)
+http://localhost:8088
+
+-- BƯỚC 4: CHẠY ETL PIPELINE (JUPYTER)
+
+1. Mở trình duyệt: http://localhost:8888
+
+3. Trong Jupyter, mở file: lakehouse_complete.ipynb
+
+4. Chạy từng cell theo thứ tự (Shift + Enter)
+
+5. Kiểm tra kết quả trong MinIO Console: http://localhost:9001
+   - Đăng nhập: admin / password
+   - Xem bucket "lakehouse" - sẽ thấy các folders:
+     * bronze/ecommerce_events/
+     * silver/ecommerce_events_cleaned/
+     * gold/daily_sales_summary/
+     * gold/brand_performance/
+     * gold/hourly_traffic/
+     * gold/daily_sales_by_category/
+
+-- BƯỚC 5: TẠO TABLES TRONG CLICKHOUSE
+
+- Vào ClickHouse client
+docker exec -it lakehouse-clickhouse clickhouse-client --user admin --password password
+
+- Chạy các lệnh SQL (copy từ file clickhouse/init.sql hoặc từ notebook)
+
+(Tạo database)
+CREATE DATABASE IF NOT EXISTS lakehouse;
+
+(Tạo S3 tables)  (Zero-Copy, đọc trực tiếp từ MinIO)
+CREATE OR REPLACE TABLE lakehouse.daily_sales_summary
+ENGINE = S3('http://minio:9000/lakehouse/gold/daily_sales_summary/data/*.parquet',
+             'admin', 'password', 'Parquet');
+
+CREATE OR REPLACE TABLE lakehouse.brand_performance
+ENGINE = S3('http://minio:9000/lakehouse/gold/brand_performance/data/*.parquet',
+             'admin', 'password', 'Parquet');
+
+CREATE OR REPLACE TABLE lakehouse.hourly_traffic
+ENGINE = S3('http://minio:9000/lakehouse/gold/hourly_traffic/data/*.parquet',
+             'admin', 'password', 'Parquet');
+
+CREATE OR REPLACE TABLE lakehouse.daily_sales_by_category
+ENGINE = S3('http://minio:9000/lakehouse/gold/daily_sales_by_category/data/*.parquet',
+             'admin', 'password', 'Parquet');
+
+(Verify)
+SELECT * FROM lakehouse.daily_sales_summary;
+SELECT * FROM lakehouse.brand_performance LIMIT 10;
+
+(Thoát ClickHouse client)
+exit;
+
+-- BƯỚC 6: CẤU HÌNH SUPERSET
+
+1. Mở trình duyệt: http://localhost:8088
+   - Đăng nhập: admin / admin
+
+2. Thêm Database Connection:
+   - Click Settings (icon bánh răng) -> Database Connections
+   - Click "+ Database"
+   - Chọn "ClickHouse Connect"
+   - Nhập Display Name: ClickHouse Lakehouse
+   - SQLAlchemy URI: clickhousedb://admin:password@clickhouse:8123/lakehouse
+   - Click "Test Connection" -> phải hiện "Connection looks good!"
+   - Click "Connect"
+
+3. Tạo Datasets:
+   - Click Data -> Datasets -> "+ Dataset"
+   - Database: ClickHouse Lakehouse
+   - Schema: lakehouse
+   - Table: daily_sales_summary
+   - Click "Create Dataset and Create Chart"
+
+   Lặp lại cho các tables khác:
+   - brand_performance
+   - hourly_traffic
+   - daily_sales_by_category
+
+4. Tạo Charts (Theo các schema nghiệp vụ):
+
+   CHART 1: Daily Revenue Trend (Line Chart)
+   - Dataset: daily_sales_summary
+   - Chart Type: Line Chart
+   - X-Axis: event_date
+   - Metrics: SUM(revenue)
+   - Save as: "Daily Revenue Trend"
+
+   CHART 2: Top Brands by Revenue (Bar Chart)
+   - Dataset: brand_performance
+   - Chart Type: Bar Chart
+   - X-Axis: brand
+   - Metrics: SUM(revenue)
+   - Row Limit: 10
+   - Sort: revenue DESC
+   - Save as: "Top 10 Brands"
+
+   CHART 3: Hourly Traffic Pattern (Area Chart)
+   - Dataset: hourly_traffic
+   - Chart Type: Area Chart
+   - X-Axis: event_hour
+   - Metrics: SUM(views), SUM(purchases)
+   - Save as: "Hourly Traffic Pattern"
+
+5. Tạo Dashboard:
+   - Click Dashboards -> "+ Dashboard"
+   - Title: "E-Commerce Analytics"
+   - Drag & drop 3 charts vào dashboard
+   - Sắp xếp layout
+   - Click "Save"
+
+
+----------- SPARK CONFIGURATION CHI TIẾT
+
+File config: spark/conf/spark-defaults.conf
+
+(ICEBERG CONFIGURATION)
+spark.sql.extensions                              org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
+spark.sql.defaultCatalog                          lakehouse
+
+(Catalog type: REST)  (kết nối tới Iceberg REST Catalog)
+spark.sql.catalog.lakehouse                       org.apache.iceberg.spark.SparkCatalog
+spark.sql.catalog.lakehouse.type                  rest
+spark.sql.catalog.lakehouse.uri                   http://iceberg-rest:8181
+
+(S3 FileIO Configuration)  (đọc/ghi files trên MinIO)
+spark.sql.catalog.lakehouse.io-impl               org.apache.iceberg.aws.s3.S3FileIO
+spark.sql.catalog.lakehouse.warehouse             s3://lakehouse/
+spark.sql.catalog.lakehouse.s3.endpoint           http://minio:9000
+spark.sql.catalog.lakehouse.s3.access-key-id      admin
+spark.sql.catalog.lakehouse.s3.secret-access-key  password
+spark.sql.catalog.lakehouse.s3.path-style-access  true
+
+(HADOOP S3A CONFIGURATION) (Spark cần có thư viện của hadoop để đọc ghi)
+# (Backup cho việc đọc files trực tiếp)
+spark.hadoop.fs.s3a.endpoint                      http://minio:9000
+spark.hadoop.fs.s3a.access.key                    admin
+spark.hadoop.fs.s3a.secret.key                    password
+spark.hadoop.fs.s3a.path.style.access             true
+spark.hadoop.fs.s3a.impl                          org.apache.hadoop.fs.s3a.S3AFileSystem
+spark.hadoop.fs.s3a.connection.ssl.enabled        false
+
+(RESOURCE CONFIGURATION) (Cái này tùy chỉnh nhé, nhưng nên theo cấu hình đễ uất)
+spark.master                                      local[8]
+spark.driver.memory                               14g
+spark.driver.cores                                8
+spark.executor.memory                             14g
+spark.executor.cores                              8
+
+(PERFORMANCE TUNING)
+spark.memory.fraction                             0.8
+spark.memory.storageFraction                      0.3
+spark.sql.shuffle.partitions                      16
+spark.sql.adaptive.enabled                        true
+spark.sql.adaptive.coalescePartitions.enabled     true
+spark.sql.adaptive.skewJoin.enabled               true
+
+(EVENT LOGGING) (Chỗ này hay bị lỗi khi chạy spark trên jupyter mặc định)
+spark.eventLog.enabled                            false
+(disabled vì folder không tồn tại trong tabulario image)
+
+
+CÁC DRIVER/LIBRARY quan trọng:
+┌─────────────────────────────────┬─────────────────────────────────────────────┐
+│ Library                         │ Mục đích                                    │
+├─────────────────────────────────┼─────────────────────────────────────────────┤
+│ iceberg-spark-runtime-3.5_2.12  │ Iceberg integration cho Spark 3.5           │
+│ iceberg-aws                     │ S3FileIO để đọc/ghi S3 (MinIO)              │
+│ aws-sdk-bundle                  │ AWS SDK v2 cho S3 operations                │
+│ hadoop-aws                      │ Hadoop S3A filesystem                       │
+│ postgresql                      │ JDBC driver cho PostgreSQL                  │
+└─────────────────────────────────┴─────────────────────────────────────────────┘
+
+!NOTE: Image tabulario/spark-iceberg đã bao gồm SẴN tất cả các libraries trên!
+
+
+
+-------------CLICKHOUSE CONFIGURATION CHI TIẾT
+
+File: clickhouse/config.xml
+
+(PERFORMANCE OPTIMIZATIONS nhé):
+--------------------------
+- max_threads: 8                    (parallel query execution)
+- s3_max_connections: 1000          (concurrent S3 connections)
+- mark_cache_size: 5GB              (cache cho mark files)
+- uncompressed_cache_size: 8GB      (cache cho uncompressed data)
+- optimize_move_to_prewhere: ON     (tự động optimize WHERE)
+- optimize_read_in_order: ON        (đọc data theo order)
+- use_uncompressed_cache: ON        (sử dụng cache)
+
+OPTIMIZED TABLE DESIGN:
+-----------------------
+Xem file: clickhouse/init.sql
+
+**Các kỹ thuật tối ưu:
+1. PRIMARY KEY: Định nghĩa cột khóa chính để sort và index
+   PRIMARY KEY (event_date)
+
+2. ORDER BY: Thứ tự lưu trữ data trên disk
+   ORDER BY (event_date, category_code, revenue)
+
+3. PARTITION BY: Chia data theo partition
+   PARTITION BY toYYYYMM(event_date)
+
+4. Data Skipping Index: Bỏ qua granules không cần thiết
+   INDEX idx_revenue revenue TYPE minmax GRANULARITY 1
+   INDEX idx_brand brand TYPE bloom_filter(0.01) GRANULARITY 1
+
+   (Clickhouse index theo granule, mỗi granule mặc định chứa 8192 row, khi querry sẽ check minmax của granule để skipping index)
+
+CONNECTION STRINGS:
+-------------------
+# HTTP Interface (for Superset, curl, HTTP clients)
+URL: http://clickhouse:8123
+User: admin
+Password: password
+Database: lakehouse
+
+# Native Interface (for clickhouse-client, high-performance apps)
+Host: clickhouse
+Port: 9000 (internal) / 9440 (external mapping)
+User: admin
+Password: password
+
+# Superset SQLAlchemy URI:
+clickhousedb://admin:password@clickhouse:8123/lakehouse
+
+
+
+---------- DBT CONFIGURATION
+
+
+File: dbt/profiles.yml
+
+lakehouse_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: spark
+      method: thrift
+      host: spark-iceberg
+      port: 10000
+      user: spark
+      schema: silver
+      connect_retries: 3
+      connect_timeout: 60
+
+-- CHẠY DBT
+**Vào container dbt
+docker exec -it lakehouse-dbt bash
+
+**Navigate tới project
+cd /usr/app/dbt/lakehouse_dbt
+
+**Test connection
+dbt debug
+
+**Chạy models, test
+dbt run
+dbt test
+
+**Generate docs
+dbt docs generate
+dbt docs serve --port 8001
+
+--- DBT MODELS STRUCTURE:
+
+models/
+├── silver/
+│   ├── stg_ecommerce_events.sql    # Transform Bronze -> Silver
+│   └── schema.yml                   # Tests: not_null, accepted_values
+└── gold/
+    ├── daily_sales_summary.sql      # Aggregation
+    ├── brand_performance.sql        # Aggregation
+    ├── hourly_traffic.sql           # Aggregation
+    └── schema.yml                   # Tests: not_null, unique
+
+
+
+----------------ICEBERG FEATURES DEMO
+
+(SCHEMA EVOLUTION)
+**Thêm cột mới vào table đang có data
+spark.sql("""
+    ALTER TABLE lakehouse.bronze.ecommerce_events
+    ADD COLUMN payment_method STRING
+""")
+
+**Insert data mới với cột mới
+(Data cũ sẽ có NULL cho cột mới => KHÔNG cần rewrite)
+
+(TIME TRAVEL)
+**Xem history của table
+spark.sql("SELECT * FROM lakehouse.bronze.ecommerce_events.history")
+
+**Xem snapshots
+spark.sql("SELECT snapshot_id, committed_at, operation FROM lakehouse.bronze.ecommerce_events.snapshots")
+
+**Query data tại snapshot cũ
+spark.sql("""
+    SELECT * FROM lakehouse.bronze.ecommerce_events
+    VERSION AS OF 123456789  -- snapshot_id
+""")
+
+**Query data tại thời điểm cũ
+spark.sql("""
+    SELECT * FROM lakehouse.bronze.ecommerce_events
+    TIMESTAMP AS OF '2024-01-01 00:00:00'
+""")
+
+(PARTITIONING)
+
+**Tạo table với partition
+df.writeTo("lakehouse.silver.events") \
+    .partitionedBy("event_date") \
+    .createOrReplace()
+
+**Iceberg sẽ tự động:
+- Tạo folder structure theo partition
+- Skip partitions không match với query filter
+- Optimize query performance
+
+-------------TROUBLESHOOTING
+
+****Container không start
+
+-Kiểm tra logs
+docker compose logs <service-name>
+
+docker compose logs spark-iceberg
+docker compose logs clickhouse
+docker compose logs superset
+
+
+****ClickHouse không connect được MinIO
+-Kiểm tra network
+docker exec -it lakehouse-clickhouse ping minio
+
+-Kiểm tra MinIO health
+docker exec -it lakehouse-clickhouse curl http://minio:9000/minio/health/live
+
+****Superset lỗi kết nối ClickHouse
+-Đảm bảo dùng hostname "clickhouse" không phải "localhost"
+-SQLAlchemy URI đúng: clickhousedb://admin:password@clickhouse:8123/lakehouse
+
+****Iceberg REST Catalog lỗi
+-Kiểm tra PostgreSQL
+docker exec -it lakehouse-postgres psql -U admin -d iceberg_catalog -c "SELECT 1"
+
+-Restart iceberg-rest
+docker compose restart iceberg-rest
+
+****Không thấy data trong MinIO
+-Kiểm tra bucket
+docker exec -it lakehouse-minio-init mc ls myminio/lakehouse/
+
+(Nếu trống, chạy lại notebook từ đầu)
+
+****Memory issues
+-Giảm resource trong docker-compose.yml:
+deploy:
+  resources:
+    limits:
+      memory: 8g  # nhẹ nhàng mà tinh tế
+      cpus: "4"   # tôi chỉ cần anh thế thôi 
+
+-Và trong spark-defaults.conf:
+spark.driver.memory    6g
+spark.executor.memory  6g
+
+
+---------------COMMANDS CHEAT SHEET
+
+(DOCKER) (cái này là hiểu biết tối thiểu nhỉ :))))
+docker compose up -d                    # Start all
+docker compose down                     # Stop all
+docker compose down -v                  # Stop + remove volumes
+docker compose ps                       # Check status
+docker compose logs -f <service>        # Follow logs
+docker compose restart <service>        # Restart specific service
+
+(CLICKHOUSE)
+docker exec -it lakehouse-clickhouse clickhouse-client --user admin --password password
+
+(SPARK)
+-Vào Jupyter: http://localhost:8888
+-Vào Spark UI: http://localhost:8080
+
+(DBT)
+docker exec -it lakehouse-dbt bash
+cd /usr/app/dbt/lakehouse_dbt
+dbt debug
+dbt run
+dbt test
+
+(MINIO)
+-Console: http://localhost:9001 (admin/password)
+docker exec -it lakehouse-minio-init mc ls myminio/lakehouse/
+
+(SUPERSET)
+-Web UI: http://localhost:8088 (admin/admin)
+
+
+TODO

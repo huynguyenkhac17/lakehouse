@@ -1,8 +1,11 @@
-CREATE DATABASE metastore_db;
-CREATE DATABASE superset_db;
-CREATE USER hive WITH PASSWORD 'password';
-CREATE USER superset WITH PASSWORD 'password';
-GRANT ALL PRIVILEGES ON DATABASE metastore_db TO hive;
-GRANT ALL PRIVILEGES ON DATABASE superset_db TO superset;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO hive;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO hive;
+-- PostgreSQL Init Script for Lakehouse
+-- This database is used by:
+-- 1. Iceberg REST Catalog (iceberg_catalog - default DB)
+-- 2. Apache Superset (superset)
+
+-- Create Superset database
+CREATE DATABASE superset;
+
+-- Grant privileges
+GRANT ALL PRIVILEGES ON DATABASE superset TO admin;
+GRANT ALL PRIVILEGES ON DATABASE iceberg_catalog TO admin;
