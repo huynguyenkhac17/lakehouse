@@ -61,13 +61,18 @@ dbt debug
 
 # Chạy models
 dbt run
-
-# Chạy tests
-dbt test
-
-# Generate documentation
-dbt docs generate
-dbt docs serve --port 8001
 ```
 
-## Visualization with 
+dbt models are located in:
+- `/dbt/lakehouse_dbt/models/silver/` - Silver layer transformations
+- `/dbt/lakehouse_dbt/models/gold/` - Gold layer aggregations
+
+## Visualization
+
+Superset is running at http://localhost:8088. Log in using `admin/admin`, then create a database connection and a dataset to build your dashboard.
+
+---
+
+This project is our team’s submission for the DataFlow 2026 contest in the “Fullstack Open-Source Lakehouse Platform” category.
+
+Contest website: [HAMIC - Dataflow 2026](https://dataflow.hamictoantin.com/vi)
