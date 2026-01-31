@@ -6,7 +6,7 @@ This is a docker compose environment to quickly get up and running with a Spark 
 
 # Data
 
-This repository uses the “eCommerce Events History in Cosmetics Shop” dataset to demonstrate ETL scripts and data visualization. The dataset can be downloaded from Kaggle via this [link](https://www.kaggle.com/datasets/mkechinov/ecommerce-events-history-in-cosmetics-shop).
+This repository uses the [“eCommerce Events History in Cosmetics Shop” dataset](https://www.kaggle.com/datasets/mkechinov/ecommerce-events-history-in-cosmetics-shop) to demonstrate ETL scripts and data visualization. The dataset can be downloaded from Kaggle.
 
 # Usage
 
