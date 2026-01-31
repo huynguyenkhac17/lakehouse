@@ -4,7 +4,7 @@ Triển khai theo MEDALLION ARCHITECTURE
 
                     ┌─────────────────────────────────────┐
                     │           DATA SOURCES              │
-                    │   demo_small.csv (e-commerce)       │
+                    │   *.csv (e-commerce)                │
                     └──────────────┬──────────────────────┘
                                    │
                                    ▼
@@ -192,7 +192,7 @@ docker compose up -d
 docker compose ps (-a)
 
 - Kết quả mong đợi: Tất cả services phải "Up" hoặc "healthy"
-Trừ: minio-init (Exited 0) - đây là init container, exit là chuẩn bài
+Trừ: minio-init (Exited 0) - đây là init container.
 
 -- BƯỚC 3: KIỂM TRA SERVICES
 
@@ -353,7 +353,7 @@ spark.hadoop.fs.s3a.path.style.access             true
 spark.hadoop.fs.s3a.impl                          org.apache.hadoop.fs.s3a.S3AFileSystem
 spark.hadoop.fs.s3a.connection.ssl.enabled        false
 
-(RESOURCE CONFIGURATION) (Cái này tùy chỉnh nhé, nhưng nên theo cấu hình đễ uất)
+(RESOURCE CONFIGURATION) (Cái này tùy chỉnh, nhưng nên theo cấu hình đề xuất)
 spark.master                                      local[8]
 spark.driver.memory                               14g
 spark.driver.cores                                8
@@ -575,8 +575,8 @@ docker exec -it lakehouse-minio-init mc ls myminio/lakehouse/
 deploy:
   resources:
     limits:
-      memory: 8g  # nhẹ nhàng mà tinh tế
-      cpus: "4"   # tôi chỉ cần anh thế thôi 
+      memory: 8g  
+      cpus: "4"   
 
 -Và trong spark-defaults.conf:
 spark.driver.memory    6g
@@ -585,7 +585,7 @@ spark.executor.memory  6g
 
 ---------------COMMANDS CHEAT SHEET
 
-(DOCKER) (cái này là hiểu biết tối thiểu nhỉ :))))
+(DOCKER) 
 docker compose up -d                    # Start all
 docker compose down                     # Stop all
 docker compose down -v                  # Stop + remove volumes
@@ -613,6 +613,3 @@ docker exec -it lakehouse-minio-init mc ls myminio/lakehouse/
 
 (SUPERSET)
 -Web UI: http://localhost:8088 (admin/admin)
-
-
-TODO
