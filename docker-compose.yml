@@ -167,7 +167,7 @@ services:
     ports:
       - "8088:8088"
     environment:
-      SUPERSET_SECRET_KEY: "lakehouse-secret-key-change-in-production"
+      SUPERSET_SECRET_KEY: "demo-secret-key"
       SQLALCHEMY_DATABASE_URI: "postgresql+psycopg2://admin:password@postgres:5432/superset"
     volumes:
       - superset-data:/app/superset_home
