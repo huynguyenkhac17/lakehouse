@@ -1,15 +1,11 @@
--- ============================================================
 -- CLICKHOUSE OPTIMIZED TABLES FOR LAKEHOUSE
 -- Run after Spark has written Gold layer data to MinIO
--- ============================================================
 
 -- Create database
 CREATE DATABASE IF NOT EXISTS lakehouse;
 
--- ============================================================
--- OPTION 1: S3 Engine (Zero-Copy, reads directly from MinIO)
+--  S3 Engine (Zero-Copy, reads directly from MinIO)
 -- Use this for ad-hoc queries on fresh data
--- ============================================================
 
 CREATE OR REPLACE TABLE lakehouse.s3_daily_sales_summary
 ENGINE = S3('http://minio:9000/lakehouse/gold/daily_sales_summary/data/*.parquet',
@@ -27,10 +23,8 @@ CREATE OR REPLACE TABLE lakehouse.s3_daily_sales_by_category
 ENGINE = S3('http://minio:9000/lakehouse/gold/daily_sales_by_category/data/*.parquet',
              'admin', 'password', 'Parquet');
 
--- ============================================================
--- OPTION 2: MergeTree Engine (Optimized with Primary Key & Indices)
--- Use this for high-performance dashboard queries
--- ============================================================
+--  MergeTree Engine (Optimized with Primary Key & Indices)
+-- Use this high-performance dashboard queries
 
 -- Daily Sales Summary - Optimized
 CREATE TABLE IF NOT EXISTS lakehouse.daily_sales_summary
@@ -114,10 +108,8 @@ ORDER BY (event_date, category_code, revenue)
 PARTITION BY toYYYYMM(event_date)
 SETTINGS index_granularity = 8192;
 
--- ============================================================
 -- LOAD DATA FROM S3 TO OPTIMIZED TABLES
 -- Run these after creating tables above
--- ============================================================
 
 INSERT INTO lakehouse.daily_sales_summary
 SELECT * FROM lakehouse.s3_daily_sales_summary;
@@ -131,9 +123,7 @@ SELECT * FROM lakehouse.s3_hourly_traffic;
 INSERT INTO lakehouse.daily_sales_by_category
 SELECT * FROM lakehouse.s3_daily_sales_by_category;
 
--- ============================================================
 -- VERIFY DATA & PERFORMANCE
--- ============================================================
 
 -- Check row counts
 SELECT 'daily_sales_summary' as table_name, count() as rows FROM lakehouse.daily_sales_summary
@@ -156,9 +146,7 @@ WHERE revenue > 1000
 ORDER BY revenue DESC
 LIMIT 10;
 
--- ============================================================
 -- SAMPLE ANALYTICS QUERIES FOR SUPERSET
--- ============================================================
 
 -- KPI 1: Conversion Funnel
 SELECT

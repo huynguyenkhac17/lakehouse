@@ -4,7 +4,7 @@ lakehouse_dbt:
     dev:
       type: spark
       method: thrift
-      host: spark-iceberg
+      host: spark-master
       port: 10000
       user: spark
       schema: silver
