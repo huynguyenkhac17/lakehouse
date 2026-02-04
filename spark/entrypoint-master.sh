@@ -41,10 +41,16 @@ $SPARK_HOME/sbin/start-thriftserver.sh \
     --hiveconf hive.server2.thrift.port=10000 \
     --hiveconf hive.server2.thrift.bind.host=0.0.0.0 &
 
-# Wait for thrift server
-echo "Waiting for Thrift Server to initialize..."
-sleep 10
-echo "Thrift Server initialization wait completed"
+# Wait for Thrift Server to be ready
+echo "Waiting for Thrift Server to be ready..."
+for i in {1..30}; do
+    if nc -z localhost 10000 2>/dev/null; then
+        echo "Thrift Server is ready on port 10000!"
+        break
+    fi
+    echo "Attempt $i/30: Waiting for Thrift Server..."
+    sleep 2
+done
 
 # Start Jupyter Lab (foreground - keeps container alive)
 echo "[3/3] Starting Jupyter Lab on port 8888..."

@@ -261,8 +261,10 @@ services:
       bash -c "
       pip install clickhouse-connect psycopg2-binary &&
       superset db upgrade &&
-      superset fab create-admin --username $${SUPERSET_ADMIN_USERNAME:-admin} --firstname Admin --lastname User --email $${SUPERSET_ADMIN_EMAIL:-admin@local.com} --password $${SUPERSET_ADMIN_PASSWORD:-admin} || true &&
+      echo 'Creating admin user...' &&
+      superset fab create-admin --username $${SUPERSET_ADMIN_USERNAME:-admin} --firstname Admin --lastname User --email $${SUPERSET_ADMIN_EMAIL:-admin@local.com} --password $${SUPERSET_ADMIN_PASSWORD:-admin} && echo 'Admin user created successfully' || echo 'Admin user already exists or creation failed' &&
       superset init &&
+      echo 'Superset initialization complete. Starting server...' &&
       superset run -h 0.0.0.0 -p 8088
       "
 
