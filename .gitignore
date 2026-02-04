@@ -6,7 +6,8 @@ minio/data/*
 clickhouse/data/*
 
 # Raw data
-notebooks/*
+notebooks/archive/
+notebooks/.ipynb_checkpoints/
 
 # Spark
 spark/logs/*
