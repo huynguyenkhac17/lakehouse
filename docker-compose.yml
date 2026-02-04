@@ -142,6 +142,7 @@ services:
       SPARK_WORKER_MEMORY: 6g
       SPARK_WORKER_WEBUI_PORT: 8081
     volumes:
+      - ./notebooks:/home/iceberg/notebooks
       - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
       - ./spark/entrypoint-worker.sh:/entrypoint-worker.sh
     entrypoint: ["/bin/bash", "/entrypoint-worker.sh"]
@@ -174,6 +175,7 @@ services:
       SPARK_WORKER_MEMORY: 6g
       SPARK_WORKER_WEBUI_PORT: 8081
     volumes:
+      - ./notebooks:/home/iceberg/notebooks
       - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
       - ./spark/entrypoint-worker.sh:/entrypoint-worker.sh
     entrypoint: ["/bin/bash", "/entrypoint-worker.sh"]

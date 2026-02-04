@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+# set -e
 
 echo "=========================================="
 echo "Starting Spark Master Node"
@@ -18,7 +18,14 @@ $SPARK_HOME/bin/spark-class org.apache.spark.deploy.master.Master \
 
 # Wait for master to be ready
 echo "Waiting for Spark Master to be ready..."
-sleep 10
+for i in {1..30}; do
+    if curl -s http://localhost:8080 > /dev/null 2>&1; then
+        echo "Spark Master is ready!"
+        break
+    fi
+    echo "Attempt $i/30: Waiting for Spark Master..."
+    sleep 2
+done
 
 # Start Thrift Server for dbt connections in background
 # IMPORTANT: Limit Thrift Server resources to leave room for Jupyter notebooks
@@ -32,10 +39,12 @@ $SPARK_HOME/sbin/start-thriftserver.sh \
     --conf spark.cores.max=2 \
     --conf spark.dynamicAllocation.enabled=false \
     --hiveconf hive.server2.thrift.port=10000 \
-    --hiveconf hive.server2.thrift.bind.host=0.0.0.0
+    --hiveconf hive.server2.thrift.bind.host=0.0.0.0 &
 
 # Wait for thrift server
-sleep 5
+echo "Waiting for Thrift Server to initialize..."
+sleep 10
+echo "Thrift Server initialization wait completed"
 
 # Start Jupyter Lab (foreground - keeps container alive)
 echo "[3/3] Starting Jupyter Lab on port 8888..."
