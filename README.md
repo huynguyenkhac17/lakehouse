@@ -80,22 +80,23 @@ Notebook sẽ thực hiện:
 - **ClickHouse**: Tạo tables và load data từ MinIO
 - **Superset**: Tạo datasource kết nối ClickHouse
 
-## Chạy dbt transformations
+## Cấu hình Superset Dashboard
 
-```bash
-# Vào container dbt
-docker exec -it lakehouse-dbt bash
+1. Truy cập http://localhost:8088 (admin / admin)
 
-# Test connection
-dbt debug
+2. **Thêm kết nối ClickHouse**: Settings → Database Connections → + Database → ClickHouse Connect
+   - Host: `clickhouse` | Port: `8123` | Database: `lakehouse`
+   - Username: `admin` | Password: `password`
 
-# Chạy models
-dbt run
-```
+3. **Tạo 3 Charts**:
 
-dbt models nằm tại:
-- `dbt/lakehouse_dbt/models/silver/` - Silver layer transformations
-- `dbt/lakehouse_dbt/models/gold/` - Gold layer aggregations
+   | Chart | Type | Dataset | Metrics |
+   |-------|------|---------|---------|
+   | Daily Revenue Trend | Line | daily_sales_summary | revenue by event_date |
+   | Top Brands | Bar | brand_performance | revenue by brand (top 10) |
+   | Hourly Traffic | Area | hourly_traffic | views, purchases by event_hour |
+
+4. **Tạo Dashboard**: Dashboards → + Dashboard → Thêm 3 charts → Save
 
 ## Reset hệ thống
 

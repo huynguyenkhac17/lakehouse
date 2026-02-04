@@ -11,7 +11,7 @@ Triển khai theo MEDALLION ARCHITECTURE
 ┌──────────────────────────────────────────────────────────────────┐
 │                      APACHE SPARK 3.5.1                          │
 │   tabulario/spark-iceberg:3.5.1_1.5.0                            │
-│   Local Mode: 8 cores, 14GB RAM                                  │
+│   Cluster Mode: Master + 2 Workers                               │
 └──────────────────────────────────────────────────────────────────┘
           │                    │                    │
           ▼                    ▼                    ▼
@@ -123,7 +123,7 @@ lakehouse/
   các services, và dễ dàng integrate với nhiều compute engines khác nhau.
 
   Kiến trúc cũ: Spark Cluster (standalone) + Hive Metastore
-  Kiến trúc mới: Spark (local mode trong tabulario image) + Iceberg REST Catalog
+  Kiến trúc mới: Spark Cluster (Master + 2 Workers) + Iceberg REST Catalog
 
 SPARK IMAGE CHI TIẾT:
   Image: tabulario/spark-iceberg:3.5.1_1.5.0
@@ -353,12 +353,18 @@ spark.hadoop.fs.s3a.path.style.access             true
 spark.hadoop.fs.s3a.impl                          org.apache.hadoop.fs.s3a.S3AFileSystem
 spark.hadoop.fs.s3a.connection.ssl.enabled        false
 
-(RESOURCE CONFIGURATION) (Cái này tùy chỉnh, nhưng nên theo cấu hình đề xuất)
-spark.master                                      local[8]
-spark.driver.memory                               14g
-spark.driver.cores                                8
-spark.executor.memory                             14g
-spark.executor.cores                              8
+(RESOURCE CONFIGURATION) (Cluster Mode: Master + 2 Workers)
+spark.master                                      spark://spark-master:7077
+spark.driver.memory                               2g
+spark.driver.cores                                1
+spark.executor.memory                             2g
+spark.executor.cores                              2
+spark.executor.instances                          2
+
+(DYNAMIC ALLOCATION)
+spark.dynamicAllocation.enabled                   true
+spark.dynamicAllocation.minExecutors              1
+spark.dynamicAllocation.maxExecutors              4
 
 (PERFORMANCE TUNING)
 spark.memory.fraction                             0.8
