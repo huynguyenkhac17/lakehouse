@@ -71,3 +71,29 @@ models:
         description: "Purchases in this hour"
       - name: revenue
         description: "Revenue generated in this hour"
+
+  - name: daily_sales_by_category
+    description: "Gold layer - Daily sales aggregated by category for trend analysis"
+    columns:
+      - name: event_date
+        description: "Date of the sales data"
+        tests:
+          - not_null
+      - name: category_code
+        description: "Product category code"
+        tests:
+          - not_null
+      - name: total_events
+        description: "Total events for this category on this date"
+      - name: views
+        description: "Product views for this category"
+      - name: add_to_cart
+        description: "Add-to-cart events for this category"
+      - name: purchases
+        description: "Completed purchases for this category"
+      - name: revenue
+        description: "Total revenue from this category"
+      - name: unique_users
+        description: "Distinct users who interacted with this category"
+      - name: conversion_rate
+        description: "Category-specific conversion rate"
